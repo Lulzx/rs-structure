@@ -1,2 +1,3 @@
 [dependencies]
 hyper = "0.13"
+tokio = { version = "0.2", features = ["full"] }
