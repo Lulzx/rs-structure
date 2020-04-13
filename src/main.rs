@@ -1,34 +1,25 @@
-#![deny(warnings)]
+use telebot::Bot;
+use futures::stream::Stream;
+use std::env;
 
-use std::convert::Infallible;
+// import all available functions
+use telebot::functions::*;
 
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
+fn main() {
+    // Create the bot
+    let mut bot = Bot::new(&env::var("TELEGRAM_BOT_KEY").unwrap()).update_interval(200);
 
-async fn hello(_: Request<Body>) -> Result<Response<Body>, Infallible> {
-    Ok(Response::new(Body::from("Hello World!")))
-}
+    // Register a reply command which answers a message
+    let handle = bot.new_cmd("/reply")
+        .and_then(|(bot, msg)| {
+            let mut text = msg.text.unwrap().clone();
+            if text.is_empty() {
+                text = "<empty>".into();
+            }
 
-#[tokio::main]
-pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    pretty_env_logger::init();
+            bot.message(msg.chat.id, text).send()
+        })
+        .for_each(|_| Ok(()));
 
-    // For every connection, we must make a `Service` to handle all
-    // incoming HTTP requests on said connection.
-    let make_svc = make_service_fn(|_conn| {
-        // This is the `Service` that will handle the connection.
-        // `service_fn` is a helper to convert a function that
-        // returns a Response into a `Service`.
-        async { Ok::<_, Infallible>(service_fn(hello)) }
-    });
-
-    let addr = ([127, 0, 0, 1], 3000).into();
-
-    let server = Server::bind(&addr).serve(make_svc);
-
-    println!("Listening on http://{}", addr);
-
-    server.await?;
-
-    Ok(())
+    bot.run_with(handle);
 }
